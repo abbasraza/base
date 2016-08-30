@@ -629,6 +629,145 @@ typedef GSString	*ivars;
 #endif /* defined(LLONG_MAX) */
 }
 
+/*
+ * Scan an unsigned long long of the given radix into value.
+ * Internal version used by scanHexLongLong: .
+ */
+- (BOOL) scanUnsignedLongLong_: (unsigned long long int*)value
+		    radix: (NSUInteger)radix
+		gotDigits: (BOOL)gotDigits
+{
+#if defined(ULLONG_MAX)
+  unsigned long long int	num = 0;
+  unsigned long long int	numLimit, digitLimit, digitValue;
+  BOOL		overflow = NO;
+  unsigned int	saveScanLocation = _scanLocation;
+
+  /* Set limits */
+  numLimit = ULLONG_MAX / radix;
+  digitLimit = ULLONG_MAX % radix;
+
+  /* Process digits */
+  while (_scanLocation < myLength())
+    {
+      unichar digit = myCharacter(_scanLocation);
+
+      switch (digit)
+	{
+	  case '0': digitValue = 0; break;
+	  case '1': digitValue = 1; break;
+	  case '2': digitValue = 2; break;
+	  case '3': digitValue = 3; break;
+	  case '4': digitValue = 4; break;
+	  case '5': digitValue = 5; break;
+	  case '6': digitValue = 6; break;
+	  case '7': digitValue = 7; break;
+	  case '8': digitValue = 8; break;
+	  case '9': digitValue = 9; break;
+	  case 'a': digitValue = 0xA; break;
+	  case 'b': digitValue = 0xB; break;
+	  case 'c': digitValue = 0xC; break;
+	  case 'd': digitValue = 0xD; break;
+	  case 'e': digitValue = 0xE; break;
+	  case 'f': digitValue = 0xF; break;
+	  case 'A': digitValue = 0xA; break;
+	  case 'B': digitValue = 0xB; break;
+	  case 'C': digitValue = 0xC; break;
+	  case 'D': digitValue = 0xD; break;
+	  case 'E': digitValue = 0xE; break;
+	  case 'F': digitValue = 0xF; break;
+	  default:
+	    digitValue = radix;
+	    break;
+	}
+      if (digitValue >= radix)
+	break;
+      if (!overflow)
+	{
+	  if ((num > numLimit)
+	    || ((num == numLimit) && (digitValue > digitLimit)))
+	    overflow = YES;
+	  else
+	    num = num * radix + digitValue;
+	}
+      _scanLocation++;
+      gotDigits = YES;
+    }
+
+  /* Save result */
+  if (!gotDigits)
+    {
+      _scanLocation = saveScanLocation;
+      return NO;
+    }
+  if (value)
+    {
+      if (overflow)
+	*value = ULLONG_MAX;
+      else
+	*value = num;
+    }
+  return YES;
+#else /* defined(ULLONG_MAX) */
+  /*
+   * Provide compile-time warning and run-time exception.
+   */
+#    warning "Can't use unsigned long long variables."
+  [NSException raise: NSGenericException
+	       format: @"Can't use unsigned long long variables."];
+  return NO;
+#endif /* defined(ULLONG_MAX) */
+}
+
+/**
+ * After initial skipping (if any), this method scans a hexadecimal
+ * long long value (optionally prefixed by "0x" or "0X"),
+ * placing it in <em>longLongValue</em> if that is not null.
+ * <br/>
+ * Returns YES if anything is scanned, NO otherwise.
+ * <br/>
+ * On overflow, ULLONG_MAX or ULLONG_MAX is put into <em>longLongValue</em>
+ * <br/>
+ * Scans past any excess digits
+ */
+- (BOOL) scanHexLongLong: (unsigned long long*)value
+{
+  unsigned int saveScanLocation = _scanLocation;
+
+  /* Skip whitespace */
+  if (!skipToNextField())
+    {
+      _scanLocation = saveScanLocation;
+      return NO;
+    }
+
+  if ((_scanLocation < myLength()) && (myCharacter(_scanLocation) == '0'))
+    {
+      _scanLocation++;
+      if (_scanLocation < myLength())
+	{
+	  switch (myCharacter(_scanLocation))
+	    {
+	      case 'x':
+	      case 'X':
+		_scanLocation++;	// Scan beyond the 0x prefix
+		break;
+	      default:
+		_scanLocation--;	// Scan from the initial digit
+	        break;
+	    }
+	}
+      else
+	{
+	  _scanLocation--;	// Just scan the zero.
+	}
+    }
+  if ([self scanUnsignedLongLong_: value radix: 16 gotDigits: NO])
+    return YES;
+  _scanLocation = saveScanLocation;
+  return NO;
+}
+
 /**
  * Not implemented.
  */
@@ -1137,10 +1276,6 @@ typedef GSString	*ivars;
   return NO;    // FIXME
 }
 - (BOOL) scanHexFloat: (float *)result
-{
-  return NO;    // FIXME
-}
-- (BOOL) scanHexLongLong: (unsigned long long *)result
 {
   return NO;    // FIXME
 }

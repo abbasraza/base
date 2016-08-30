@@ -51,6 +51,19 @@ static BOOL scanHex(NSString *str,
   return ((expectValue == 1) ? (expectedValue == *retp) : YES
           && expectedScanLoc == [scn scanLocation]);
 }
+
+static BOOL scanHexLongLong(NSString *str,
+		    int expectValue,
+		    unsigned long long expectedValue,
+		    int expectedScanLoc,
+		    int *retp)
+{
+  NSScanner *scn = [NSScanner scannerWithString:str];
+  [scn scanHexLongLong:retp];
+  return ((expectValue == 1) ? (expectedValue == *retp) : YES
+          && expectedScanLoc == [scn scanLocation]);
+}
+
 static BOOL scanDouble(NSString *str, 
 		    double expectedValue,
 		    double *retp)
@@ -104,6 +117,10 @@ int main()
   PASS(scanHex(@"1234FOO", 1, 0x1234F, 5, &ret)
        && scanHex(@"01234FOO", 1, 0x1234F, 6, &ret),
        "NSScanner hex (non-digits terminate scan)");
+
+  PASS(scanHexLongLong(@"1234FOO", 1, 0x1234F, 5, &ret)
+       && scanHexLongLong(@"01234FOO", 1, 0x1234F, 6, &ret),
+       "NSScanner hex long long (non-digits terminate scan)");
  /* dbl1 = 123.456;
   dbl2 = 123.45678901234567890123456789012345678901234567;
   dbl3 = 1.23456789;
